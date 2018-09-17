@@ -14,7 +14,7 @@
 #define   MESH_PORT       5555
 
 
-Scheduler userScheduler; // to control your personal task
+// Scheduler userScheduler; // to control your personal task
 painlessMesh  mesh;
 
 // User stub
@@ -34,9 +34,10 @@ void setup() {
   pinMode(myControlPin, OUTPUT);
   Serial.println("ControlPin State :"+String(digitalRead(myControlPin)));
 //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE ); // all types on
-  mesh.setDebugMsgTypes( ERROR | STARTUP | CONNECTION);  // set before init() so that you can see startup messages
+  mesh.setDebugMsgTypes( ERROR | STARTUP);  // set before init() so that you can see startup messages
 
-  mesh.init( MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT );
+  // mesh.init( MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT );
+  mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT );
   mesh.onReceive(&receivedCallback);
   mesh.onNewConnection(&newConnectionCallback);
   mesh.onChangedConnections(&changedConnectionCallback);
@@ -55,11 +56,23 @@ void setup() {
   });
 
   server.on("/getdeviceinfo", HTTP_GET, [](AsyncWebServerRequest *request){
+      println("Received request to get device information");
       sendDeviceInfo(request);
   });
 
   server.on("/switch", HTTP_POST, [](AsyncWebServerRequest *request){
+     println("Received request to switch state of a Switch");
   	 sendSwitchResponse(request);
+  });
+
+  server.on("/allon", HTTP_GET, [](AsyncWebServerRequest *request){
+    println("Received request to switch state of all connected Switch to HIGH");
+    fireBroadCastMessage(request, 1);
+  });
+
+  server.on("/alloff", HTTP_GET, [](AsyncWebServerRequest *request){
+    println("Received request to switch state of all connected Switch to LOW");
+    fireBroadCastMessage(request, 0);
   });
 
   // userScheduler.addTask( taskSendMessage );
@@ -70,6 +83,20 @@ void setup() {
 void loop() {
 //  userScheduler.execute(); // it will run mesh scheduler as well
   mesh.update();
+}
+
+void fireBroadCastMessage(AsyncWebServerRequest *request, int receivedState){
+  String message;
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+  DynamicJsonBuffer jsonBuffer;
+  JsonObject &root = jsonBuffer.createObject();
+  root["targetNodeId"] = "all";
+  root["command"] = "switch";
+  root["state"] = receivedState;
+  root.printTo(message);
+  root["success"] = mesh.sendBroadcast(message, true);
+  root.printTo(*response);
+  request->send(response);
 }
 
 void sendSwitchResponse(AsyncWebServerRequest *request){
@@ -132,7 +159,7 @@ String sendSwitchSignal(){
 	jsonObj.printTo(strResponse);
   if(targetNodeId != myNodeId){
     Serial.printf("Sending Switch signal %d to nodeId: %u, from nodeId: %u", state, targetNodeId, myNodeId);
-    jsonObj["success"] = mesh.sendSingle(targetNodeId, strResponse);
+    jsonObj["trigger"] = mesh.sendSingle(targetNodeId, strResponse);
   }else{
     println("myNode is the targetNode");
     if(digitalRead(myControlPin) != state){
@@ -179,20 +206,24 @@ void nodeTimeAdjustedCallback(int32_t offset) {
 // }	
 
 void handleReceivedSignal(uint32_t from, String &msg){
-	String mess;
+  String pinState;
 	StaticJsonBuffer<200> jsonBuffer;
-	JsonObject& rjsonObj = jsonBuffer.parseObject(msg);
-	int tempState = rjsonObj["state"];
-	if(rjsonObj["command"] == "switch"){
-		println("Received 'Switch' Command from node: "+String(from));
+	JsonObject& reqJsonObj = jsonBuffer.parseObject(msg);
+	int tempState = reqJsonObj["state"];
+	if(reqJsonObj["command"] == "switch"){
 		if(digitalRead(myControlPin) != tempState){
+      pinState = "true";
 			digitalWrite(myControlPin, tempState);
-			mess = "ControlPin on node :"+String(targetNodeId)+" has been set to "+String(tempState)+" state.";
 		}else{
-			mess = "ControlPin on node :"+String(targetNodeId)+" already in "+String(tempState)+" state.";
+      pinState = "NSCN";
 		}
-	}else{
-		mess = "Unknown Command Received";
+    mesh.sendSingle(from, "{\"targetNodeId\":"+String(myNodeId)+",\"command\":switch_response,\"state\":"+String(tempState)+",\"success\":"+pinState+"}");
+	}else if(reqJsonObj["command"] == "switch_response"){
+      StaticJsonBuffer<200> jsonBuffer;
+      JsonObject& resJsonObj = jsonBuffer.parseObject(msg);
+      resJsonObj.printTo(Serial); 
+      // Need to enhance this block to send back http response.;
+  }else{
+		println("Unknown Command Received");
 	}
-	println(mess);
 }
