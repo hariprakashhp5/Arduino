@@ -20,15 +20,16 @@ void setupWifiParameters(AsyncWebServerRequest *request){
 	}
 }
 
-void sendResponse(AsyncWebServerRequest *request){
+// Need to improvise this method
+void sendResponse(AsyncWebServerRequest *request, String cmd){
   String message;
-    if(request->hasParam("targetNodeId", true) && request->hasParam("state", true)){
+    if(cmd=="switch" && request->hasParam("targetNodeId", true) && request->hasParam("state", true)){
       targetNodeId = atoi (request->getParam("targetNodeId", true)->value().c_str());
       state = request->getParam("state", true)->value().toInt();
-      message = sendSignal("switch");
-    }else if(request->hasParam("targetNodeId", true)){
+      message = sendSignal(cmd);
+    }else if((cmd=="restart" ||cmd=="resetmem") && request->hasParam("targetNodeId", true)){
       targetNodeId = atoi (request->getParam("targetNodeId", true)->value().c_str());
-      message = sendSignal("restart");
+      message = sendSignal(cmd);
     }else{
       message = debugRequest(request);
     }
@@ -39,6 +40,7 @@ String sendSignal(String cmd){
 	String strResponse;
 	StaticJsonBuffer<200> jsonBuffer;
 	JsonObject& jsonObj = jsonBuffer.createObject();
+  jsonObj["sourceNodeId"] = myNodeId;
   jsonObj["targetNodeId"] = targetNodeId;
 	jsonObj["command"] = cmd;
 	jsonObj["state"] = state;
@@ -165,5 +167,5 @@ void handleReceivedSignal(uint32_t from, String &msg){
 
 void println(String content){
   if(DEBUG_MODE)
-    Serial.println(content);
+    Serial.println("["+String(myNodeId)+"] - "+content);
 }

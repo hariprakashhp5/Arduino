@@ -4,9 +4,14 @@ void initBasicRoutes(){
 		request->send(404, "text/html", "<h1>Not found</h1>");
 	});
 
-  server.on("/resetmem", HTTP_GET,[](AsyncWebServerRequest *request){
-    println("[GET] - Received request to Reset Memory.");
-    request->send(200, "text/json", sendSignal("resetmem"));
+  server.on("/resetmem", HTTP_POST,[](AsyncWebServerRequest *request){
+    println("[POST] - Received request to Reset Memory.");
+    sendResponse(request, "resetmem");
+  });
+
+  server.on("/restart", HTTP_POST,[](AsyncWebServerRequest *request){
+   	println("[POST] - Received request to Restart");
+   	sendResponse(request,"restart");
   });
  
 }
@@ -21,11 +26,6 @@ void initConfigRoutes(){
 		println("[POST] - Received Data to Setup Node.");
 		setupWifiParameters(request);
 	});
-
-	server.on("/restart", HTTP_POST,[](AsyncWebServerRequest *request){
-	   	println("[POST] - Received request to Restart this Node: ");
-	   	ESP.restart();
-  	});
 }
 
 
@@ -43,7 +43,7 @@ void initMainRoutes(){
 
 	server.on("/switch", HTTP_POST, [](AsyncWebServerRequest *request){
 		println("[POST] - Received request to change state of a Switch");
-		sendResponse(request);
+		sendResponse(request, "switch");
 	});
 
 	server.on("/allon", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -55,11 +55,6 @@ void initMainRoutes(){
 		println("[GET] - Received request to change state of all connected switchs to LOW");
 		fireBroadCastMessage(request, 0);
 	});	
-
-	server.on("/restart", HTTP_POST,[](AsyncWebServerRequest *request){
-	   	println("[POST] - Received request to Restart Node: "+String(myNodeId));
-	   	sendResponse(request);
-  	});
 }
 
 

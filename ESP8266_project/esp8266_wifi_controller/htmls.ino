@@ -3,7 +3,9 @@ const char * homePage =" <!DOCTYPE html>"
 	"<body>"
 		"<h1>HELLO WORLD !!</h1>"
     "</br>"
-		"<a href='/getdeviceinfo'>Get Device Info</a>"
+		"<a href='/getdeviceinfo'>Get Device Info</a> |"
+		"<a href='/allon'>Switch ON all</a> |"
+		"<a href='/alloff'>Switch OFF all</a> |"
 	"</body>"
 "</html>";
 
@@ -24,7 +26,6 @@ const char * meshConfigForm = "<!DOCTYPE html>"
 			"<button type='submit'>Save</button>"
 		"</form>"
    "<br/>"
-   "<input type='button' onClick=\"window.location.href='/resetmem'\" value='Reset Memory'>"
 	"</body>"
 "</html>";
 
@@ -37,6 +38,7 @@ String configSuccess(){
 			"<p>Restart this node to connect to your cluster</p>"
 			"<br/>"
       "<form action='/restart' method='POST'>"
+      	"<input id='targetNodeId' name='targetNodeId' type='hidden' value=0 />"
         "<input type='submit' value='Restart' />"
       "</form>"
 		"</body>"

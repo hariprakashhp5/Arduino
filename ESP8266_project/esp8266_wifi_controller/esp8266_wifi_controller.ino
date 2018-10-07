@@ -2,14 +2,13 @@
 #include "IPAddress.h"
 #include <EEPROM.h>
 #ifdef ESP8266
+#include "Hash.h"
 #include <ESPAsyncTCP.h>
 #else
 #include <AsyncTCP.h>
 #endif
 #include <ESPAsyncWebServer.h>
 
-// #define   MESH_PREFIX     "whateverYouLike"
-// #define   MESH_PASSWORD   "somethingSneaky"
 #define   DEBUG_MODE  true
 #define   MESH_PORT       5555
 String MESH_PREFIX;
@@ -38,14 +37,12 @@ void setup() {
     WIFI_PASSWORD = getWiFiPSWD();
     pinMode(myControlPin, OUTPUT);
     println("ControlPin State :"+String(digitalRead(myControlPin)));
-    mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE ); // all types on
-//     mesh.setDebugMsgTypes( ERROR | STARTUP | MESH_STATUS | CONNECTION);  // set before init() so that you can see startup messages
-    // mesh.init( MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT );
+    // mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE ); // all types on
+    mesh.setDebugMsgTypes( ERROR | STARTUP );  // set before init() so that you can see startup messages
     mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT );
     mesh.onReceive(&receivedCallback);
     mesh.onNewConnection(&newConnectionCallback);
     mesh.onChangedConnections(&changedConnectionCallback);
-    mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
     myAPIP = IPAddress(mesh.getAPIP());
     myNodeId = mesh.getNodeId();
     println("My AP IP :" + myAPIP.toString()+ " My NodeId :"+String(myNodeId));
@@ -55,11 +52,23 @@ void setup() {
     println(WiFi.softAP("eSwitch")? "Ready" : "Failed!");
     initConfigRoutes();
   }
-
   initBasicRoutes();
   server.begin();
 }
 
 void loop() {
   mesh.update();
+}
+
+void receivedCallback( uint32_t from, String &msg ) {
+  println("Received from "+String(from)+" "+msg);
+  handleReceivedSignal(from, msg);
+}
+
+void newConnectionCallback(uint32_t nodeId) {
+  println("New Connection detected, nodeId = "+String(nodeId));
+}
+
+void changedConnectionCallback() {
+  println("Changed connections "+String(mesh.subConnectionJson()));
 }

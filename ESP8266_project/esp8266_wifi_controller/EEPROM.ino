@@ -58,7 +58,7 @@ String getMeshSSID(){
 		ssid +=char(EEPROM.read(i));
 	}
 	println("Mesh SSID: "+ssid);
-	return ssid;
+	return ssid.c_str();
 }
 
 String getMeshPSWD(){
@@ -67,7 +67,7 @@ String getMeshPSWD(){
 		pswd +=char(EEPROM.read(i));
 	}
 	println("Mesh Password: "+pswd);
-	return pswd;
+	return pswd.c_str();
 }
 
 String getWiFiSSID(){
@@ -76,7 +76,7 @@ String getWiFiSSID(){
 		ssid +=char(EEPROM.read(i));
 	}
 	println("WiFi SSID: "+ssid);
-	return ssid;
+	return ssid.c_str();
 }
 
 String getWiFiPSWD(){
@@ -85,7 +85,7 @@ String getWiFiPSWD(){
 		pswd += char(EEPROM.read(i));
 	}
 	println("WiFi Password: "+pswd);
-	return pswd;
+	return pswd.c_str();
 }
 
 bool resetMemory(){
