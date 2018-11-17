@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name='viewport' content='width=device-width, initial-scale=1'>
+		<link rel='stylesheet' type='text/css' href='generic.css'>
+		<title>Device Settings</title>
+	</head>
+	<body>
+		<h2>Settings</h2>
+		<p>Configure this device using the below form.</p>
+		<div class='container'>
+		  <form method='POST' action='/config'>
+		  	<div class='row'>
+		      <div class='col-25'>
+		        <label for='dName'>Device Name</label>
+		      </div>
+		      <div class='col-75'>
+		        <input type='text' required id='dName' name='dName' title='Name this device. ex: Fan1, Light1' placeholder='Device Name'>
+		      </div>
+		    </div>
+		    <div class='row'>
+		      <div class='col-25'>
+		        <label for='MeshSSID'>Network Name</label>
+		      </div>
+		      <div class='col-75'>
+		        <input type='text' required id='MeshSSID' name='MeshSSID' title='Enter Name for your device network' placeholder='Device Network Name'>
+		      </div>
+		    </div>
+		    <div class='row'>
+		      <div class='col-25'>
+		        <label for='MeshPSWD'>Network Password</label>
+		      </div>
+		      <div class='col-75'>
+		        <input type='password' required id='MeshPSWD' name='MeshPSWD' title='Enter Password for your device network' placeholder='Device Network Password'>
+		      </div>
+		    </div>
+		    <div class='row'>
+		      <div class='col-25'>
+		        <label for='WiFiSSID'>WiFi Network</label>
+		      </div>
+		      <div class='col-75'>
+		        <input type='text' id='WiFiSSID' name='WiFiSSID' title='Enter Name of your WiFi Network to which device should connect' placeholder='WiFi Network Name'>
+		      </div>
+		    </div>
+		    <div class='row'>
+		      <div class='col-25'>
+		        <label for='WiFiPSWD'>WiFi Password</label>
+		      </div>
+		      <div class='col-75'>
+		        <input type='password' id='WiFiPSWD' name='WiFiPSWD' title='Enter Password of your WiFi Network' placeholder='WiFi Password'>
+		      </div>
+		    </div>
+		    <div class='row'>
+		      <div class='col-25'></div>
+		      <div class='col-75'>
+		        <label>
+		          <input onchange="wifiParmsRequired()" name='isBridge' id='isBridge' type='checkbox'>Act as Bridge
+		          <input type='hidden' id='bridge' name='bridge' value='false'>
+		        </label>
+		      </div>
+		    </div>
+		    <div class='row'>
+		      <div class='col-25'></div>
+		      <div class='col-25'></div>
+		      <div class='col-25'>
+		        <input type='reset' value='Reset'>
+		      </div>
+		      <div class='col-25'>
+		        <input type='submit' value='Submit'>
+		      </div>
+		    </div>
+		  </form>
+		</div>
+		<script>
+		  function wifiParmsRequired() {
+		  	document.getElementById("bridge").value = document.getElementById("isBridge").checked
+		    document.getElementById("WiFiSSID").required = !document.getElementById("WiFiSSID").required
+		    document.getElementById("WiFiPSWD").required = !document.getElementById("WiFiPSWD").required
+		  }
+		</script>
+	</body>
+</html>

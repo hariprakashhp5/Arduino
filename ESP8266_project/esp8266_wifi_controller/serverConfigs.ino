@@ -1,7 +1,6 @@
 void initBasicRoutes(){
 	server.onNotFound([](AsyncWebServerRequest *request){
-		println("404 - Requested Resource Not Found !!");
-		request->send(404, "text/html", "<h1>Not found</h1>");
+		handleRequest(request);
 	});
 
   server.on("/resetmem", HTTP_POST,[](AsyncWebServerRequest *request){
@@ -19,7 +18,7 @@ void initBasicRoutes(){
 void initConfigRoutes(){
 	server.on("/", HTTP_GET,[](AsyncWebServerRequest *request){
 		println("[GET] - Received request for Config Home Page.");
-		request->send(200, "text/html", meshConfigForm);
+		request->send(SPIFFS, "/config.html");
 	});
 
 	server.on("/config", HTTP_POST,[](AsyncWebServerRequest *request){
@@ -33,8 +32,13 @@ void initConfigRoutes(){
 void initMainRoutes(){
 	server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
 		println("[GET] - Received request for Home Page");
-		request->send(200, "text/html", homePage);
+		request->send(SPIFFS, "/index.html");
 	});
+
+  server.on("/devices", HTTP_GET, [](AsyncWebServerRequest *request){
+    println("[GET] - Received request for Devices Page");
+    request->send(SPIFFS, "/devices.html");
+  });
 
 	server.on("/getdeviceinfo", HTTP_GET, [](AsyncWebServerRequest *request){
 	  println("[GET] - Received request to get device information");

@@ -1,3 +1,15 @@
+void handleRequest(AsyncWebServerRequest *request){
+  if(request->url().endsWith(".css")){
+    request->send(SPIFFS, "/generic.css");
+  }else if(request->url().endsWith(".js")){
+    request->send(SPIFFS, "/jsfunctions.js");
+  }else if(request->method() == HTTP_OPTIONS){
+    request->send(200);
+  }else{
+    request->send(404, "text/html", "<h1>404: Not found</h1>");
+  }
+}
+
 void setupWifiParameters(AsyncWebServerRequest *request){
 	bool status=false;
 	if(request->hasParam("MeshSSID", true) && request->hasParam("MeshPSWD", true)){
@@ -5,18 +17,24 @@ void setupWifiParameters(AsyncWebServerRequest *request){
 		String meshPSWD = request->getParam("MeshPSWD", true)->value();
 		String wifiSSID = request->getParam("WiFiSSID", true)->value();
 		String wifiPSWD = request->getParam("WiFiPSWD", true)->value();
-		if(wifiSSID!="" && wifiPSWD!=""){
-			setWiFiSSID(wifiSSID);
-			setWiFiPSWD(wifiPSWD);
-		}
-		status = setMeshSSID(meshSSID) && setMeshPSWD(meshPSWD);
+    String bridge = request->getParam("bridge", true)->value();
+    if(bridge=="true"){
+      Mem.setBridge(1);
+    }else{
+      Mem.setBridge(0);
+    }
+    if(wifiSSID!="" && wifiPSWD!=""){
+      Mem.setWiFiSSID(wifiSSID);
+      Mem.setWiFiPSWD(wifiPSWD); 
+    }
+		status = Mem.setMeshSSID(meshSSID) && Mem.setMeshPSWD(meshPSWD);
 	}
 	if(status){
-		setCredsState(1);
-		request->send(200, "text/html", configSuccess());
+		Mem.setCredsState(1);
+		request->send(SPIFFS, "/configSuccess.html");
 	}else{
-		setCredsState(0);
-		request->send(200, "text/html", configFailed());
+		Mem.setCredsState(0);
+		request->send(SPIFFS, "/configFailed.html");
 	}
 }
 
@@ -24,11 +42,11 @@ void setupWifiParameters(AsyncWebServerRequest *request){
 void sendResponse(AsyncWebServerRequest *request, String cmd){
   String message;
     if(cmd=="switch" && request->hasParam("targetNodeId", true) && request->hasParam("state", true)){
-      targetNodeId = atoi (request->getParam("targetNodeId", true)->value().c_str());
-      state = request->getParam("state", true)->value().toInt();
+      targetNode.id = atoi (request->getParam("targetNodeId", true)->value().c_str());
+      targetNode.pinState = request->getParam("state", true)->value().toInt();
       message = sendSignal(cmd);
     }else if((cmd=="restart" ||cmd=="resetmem") && request->hasParam("targetNodeId", true)){
-      targetNodeId = atoi (request->getParam("targetNodeId", true)->value().c_str());
+      targetNode.id = atoi (request->getParam("targetNodeId", true)->value().c_str());
       message = sendSignal(cmd);
     }else{
       message = debugRequest(request);
@@ -40,16 +58,16 @@ String sendSignal(String cmd){
 	String strResponse;
 	StaticJsonBuffer<200> jsonBuffer;
 	JsonObject& jsonObj = jsonBuffer.createObject();
-  jsonObj["sourceNodeId"] = myNodeId;
-  jsonObj["targetNodeId"] = targetNodeId;
+  jsonObj["sourceNodeId"] = thisNode.id;
+  jsonObj["targetNodeId"] = targetNode.id;
 	jsonObj["command"] = cmd;
-	jsonObj["state"] = state;
+	jsonObj["state"] = targetNode.pinState;
 	jsonObj.printTo(strResponse);
-  if(targetNodeId != myNodeId){
-    Serial.printf("Sending Switch signal %d to nodeId: %u, from nodeId: %u", state, targetNodeId, myNodeId);
-    jsonObj["trigger"] = mesh.sendSingle(targetNodeId, strResponse);
+  if(targetNode.id != thisNode.id){
+    jsonObj["trigger"] = mesh.sendSingle(targetNode.id, strResponse);
   }else{
-    println("myNode is the targetNode");
+    println("thisNode is the targetNode");
+    thisNode.pinState = targetNode.pinState;
     jsonObj["success"] = executeCommand(cmd);
   }
   strResponse="";
@@ -61,14 +79,14 @@ String sendSignal(String cmd){
 String executeCommand(String cmd){
   String returnVal;
   if(cmd == "switch"){
-    if(digitalRead(myControlPin) != state){
-      digitalWrite(myControlPin, state);
+    if(digitalRead(thisNode.controlPin) != thisNode.pinState){
+      digitalWrite(thisNode.controlPin, thisNode.pinState);
       returnVal = "true";
     }else{
       returnVal = "NSCN";   // No State Change Needed
     }
   }else if(cmd == "resetmem"){
-    returnVal = String(resetMemory());
+    returnVal = String(Mem.resetMemory());
   }else if(cmd == "restart"){
     ESP.restart();
     returnVal = "true";
@@ -102,8 +120,8 @@ void sendDeviceInfo(AsyncWebServerRequest *request){
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   DynamicJsonBuffer jsonBuffer;
   JsonObject &deviceJson = jsonBuffer.createObject();
-  deviceJson["NodeId"] = myNodeId;
-  deviceJson["NodeIp"] = myAPIP.toString();
+  deviceJson["NodeId"] = thisNode.id;
+  deviceJson["NodeIp"] = thisNode.apIp.toString();
   deviceJson["NodeTime"] = mesh.getNodeTime();
   deviceJson["EspHeap"] = ESP.getFreeHeap();
   deviceJson["topology"] = mesh.subConnectionJson();
@@ -129,34 +147,28 @@ void fireBroadCastMessage(AsyncWebServerRequest *request, int receivedState){
   request->send(response);
 }
 
-// void sendMessage() {
-//   String msg = "HeartBeat from node ";
-//   msg += mesh.getNodeId();
-//   mesh.sendBroadcast( msg );
-//   taskSendMessage.setInterval(TASK_SECOND * 10);
-// }	
 
 void handleReceivedSignal(uint32_t from, String &msg){
   String returnVal;
 	StaticJsonBuffer<200> jsonBuffer;
 	JsonObject& reqJsonObj = jsonBuffer.parseObject(msg);
-	int tempState = reqJsonObj["state"];
-	if(reqJsonObj["command"] == "switch"){
-		if(digitalRead(myControlPin) != tempState){
+  if(reqJsonObj["command"] == "switch"){
+	  thisNode.pinState = reqJsonObj["state"];
+		if(digitalRead(thisNode.controlPin) != thisNode.pinState){
+			digitalWrite(thisNode.controlPin, thisNode.pinState);
       returnVal = "true";
-			digitalWrite(myControlPin, tempState);
 		}else{
       returnVal = "NSCN";
 		}
-    mesh.sendSingle(from, "{\"targetNodeId\":"+String(myNodeId)+",\"command\":signal_response,\"state\":"+String(tempState)+",\"success\":"+returnVal+"}");
+    mesh.sendSingle(from, "{\"targetNodeId\":"+String(thisNode.id)+",\"command\":signal_response,\"state\":"+String(thisNode.pinState)+",\"success\":"+returnVal+"}");
 	}else if(reqJsonObj["command"] == "signal_response"){
       StaticJsonBuffer<200> jsonBuffer;
       JsonObject& resJsonObj = jsonBuffer.parseObject(msg);
       resJsonObj.printTo(Serial); 
       // Need to enhance this block to send back http response.;
   }else if(reqJsonObj["command"] == "resetmem"){
-      returnVal = String(resetMemory());
-      mesh.sendSingle(from, "{\"targetNodeId\":"+String(myNodeId)+",\"command\":signal_response,\"state\":ResetMem,\"success\":"+returnVal+"}");
+      returnVal = String(Mem.resetMemory());
+      mesh.sendSingle(from, "{\"targetNodeId\":"+String(thisNode.id)+",\"command\":signal_response,\"state\":ResetMem,\"success\":"+returnVal+"}");
   }else if(reqJsonObj["command"] == "restart"){
       ESP.restart();
   }else{
@@ -167,5 +179,5 @@ void handleReceivedSignal(uint32_t from, String &msg){
 
 void println(String content){
   if(DEBUG_MODE)
-    Serial.println("["+String(myNodeId)+"] - "+content);
+    Serial.println("["+String(thisNode.id)+"] - "+content);
 }

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name='viewport' content='width=device-width, initial-scale=1'>
+		<link rel='stylesheet' type='text/css' href='generic.css'>
+		<title>Config Success</title>
+	</head>
+	<body>
+		<div class='container center middle' >
+			<div class='row'>
+				<div class="isa_success">
+					Device has been Successfully configured!<br />
+					Restart this node to connect to your cluster.
+				</div>
+				<form action='/restart' method='POST'>
+					<input id='targetNodeId' name='targetNodeId' type='hidden' value=0 />
+					<input type='button' class='btn' value='Restart' />
+				</form>
+			</div>
+		</div>
+	</body>
+</html>
